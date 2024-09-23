@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <style>
+        body{
+            font-family: Arial, Helvetica, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1{
+            text-align: center;
+        }
+        #user-list{
+            margin-bottom: 20px;
+        }
+        form{
+            display: flex;
+            flex-direction: column;
+        }
+        form input{
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        form button {
+            padding: 10px;
+            background-color: green;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #pagination{
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .page-link{
+            padding: 10px;
+            margin: 5px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+        }
+        #search-bar{
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        #search-bar input{
+            padding: 10px;
+            width: 300px;
+        }
+        .user-card{
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-card button{
+            background-color: red;
+            padding: 10px;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Management System</h1>
+
+    <div id="search-bar">
+        <input type="text" id="search-input" placeholder="Search User">
+        <button onclick="searchUser()">SEARCH</button>
+    </div>
+
+    <div id="user-list">
+
+    </div>
+    <h2>Add or Update User</h2>
+    <form id="user-form">
+        <input type="text" id="name" placeholder="Name" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <button type="submit" id="submit-btn">Add User</button>
+        <input type="hidden" id="user-id">
+    </form>
+
+    <div id="pagination">
+        <span class="page-link" onclick="changePage('prev')">Prev</span>
+        <span class="page-link" onclick="changePage('next')">Next</span>
+    </div>
+
+    <script>
+        const apiURL = 'https://jsonplaceholder.typicode.com/users';
+
+        let users = []; // Array to store fetched users
+        let currentPage = 1; // Current page number
+        const usersPerPage = 5; // Number of users to display per page
+
+        const userList = document.getElementById('user-list');
+        const userForm = document.getElementById('user-form');
+        const nameInput = document.getElementById('name');
+        const emailInput = document.getElementById('email');
+        const userIdInput = document.getElementById('user-id');
+
+        // Fetch users from the API
+        const fetchUsers = async () => {
+            const response = await fetch(apiURL);
+            users = await response.json(); // Store the fetched users in the users array
+            displayUsers(); // Display the users on the page
+        };
+
+        // Display users in the user list based on the current page
+        const displayUsers = () =>{
+            const start = (currentPage - 1) * usersPerPage; // Calculate starting index for pagination
+            const paginatedUsers = users.slice(start, start + usersPerPage); // Get users for the current page
+
+            userList.innerHTML = ''; // Clear previous user list
+
+            paginatedUsers.forEach(user => {
+                const userCard = document.createElement('div'); // Create a new user card
+                userCard.classList.add('user-card');
+                userCard.innerHTML = `
+                    <div>
+                    <strong>${user.name}</strong> (${user.email})
+                    <button onclick="viewDetails(${user.id})">View Details</button>    
+                    <button onclick="editUser(${user.id})">Edit</button>  
+                    </div>  
+                    <button onclick="deleteUser(${user.id})">Delete</button>    
+                `;
+                userList.appendChild(userCard); // Append the user card to the user list
+            });
+        }
+
+        // Search for users based on input
+        const searchUser = () =>{
+            const searchInput = document.getElementById('search-input').value.toLowerCase(); // Get search input
+            const filteredUsers = users.filter(user => user.name.toLowerCase().includes(searchInput)); // Filter users
+
+            userList.innerHTML = ''; // Clear previous user list
+
+            filteredUsers.forEach(user => {
+                const userCard = document.createElement('div'); // Create a new user card
+                userCard.classList.add('user-card');
+                userCard.innerHTML = `
+                    <div>
+                    <strong>${user.name}</strong> (${user.email})
+                    <button onclick="viewDetails(${user.id})">View Details</button>    
+                    <button onclick="editUser(${user.id})">Edit</button>  
+                    </div>  
+                    <button onclick="deleteUser(${user.id})">Delete</button>    
+                `;
+                userList.appendChild(userCard); // Append the user card to the user list
+            });
+        }
+
+        // Change page based on the direction (next or previous)
+        const changePage = (direction) =>{
+            if(direction === 'next' && currentPage * usersPerPage < users.length){
+                currentPage++; // Increment page number for next page
+            } else if(direction === 'prev' && currentPage > 1){
+                currentPage--; // Decrement page number for previous page
+            }
+            displayUsers(); // Display users for the new page
+        }
+
+        // Handle form submission to add or update user
+        userForm.addEventListener('submit', async(e) =>{
+            e.preventDefault(); // Prevent default form submission
+
+            const name = nameInput.value; // Get name input
+            const email = emailInput.value; // Get email input
+            const userId = userIdInput.value; // Get user ID for updating
+
+            if(userId){
+                // Update existing user
+                const response = await fetch(`${apiURL}/${userId}`,{
+                    method: 'PUT',
+                    body: JSON.stringify({name, email}),
+                    headers: {'Content-Type': 'application/json'}
+                });
+
+                const updatedUser = await response.json(); // Get the updated user
+
+                users = users.map(user => user.id === updatedUser.id ? updatedUser : user); // Update user in the array
+            } else {
+                // Add new user
+                const response = await fetch(apiURL,{
+                    method: 'POST',
+                    body: JSON.stringify({name, email}),
+                    headers: { 'Content-Type':'application/json'}
+                });
+
+                const newUser = await response.json(); // Get the new user
+                users.push(newUser); // Add the new user to the array
+            }
+            displayUsers(); // Display updated user list
+            nameInput.value = ''; // Clear name input
+            emailInput.value = ''; // Clear email input
+            userIdInput.value = ''; // Clear user ID input
+            document.getElementById('submit-btn').innerHTML = 'Add User'; // Reset button text
+        })
+
+        // Edit user and populate the form with user data
+        const editUser= (id) =>{
+            const user = users.find(user => user.id === id); // Find user by ID
+
+            nameInput.value = user.name; // Set name input to user's name
+            emailInput.value = user.email; // Set email input to user's email
+            userIdInput.value = user.id; // Set hidden user ID input
+            document.getElementById('submit-btn').innerHTML = 'Edit User'; // Change button text to 'Edit User'
+        }
+
+        // Delete user by ID
+        const deleteUser = async(id) => {
+            await fetch(`${apiURL}/${id}`, {method: 'DELETE'}); // Send DELETE request
+            users = users.filter(user => user.id !== id); // Remove deleted user from the array
+
+            displayUsers(); // Display updated user list
+        }
+
+        // View user details in an alert
+        const viewDetails = (id) => {
+            const user = users.find(user => user.id === id); // Find user by ID
+            alert(`User Detail: \nName: ${user.name}\nEmail: ${user.email}`); // Show user details in an alert
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchUsers); // Fetch users when the DOM is fully loaded
+    </script>
+</body>
+</html>
